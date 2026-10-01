@@ -1,246 +1,259 @@
-# Research Paper Intelligence System
+# Research Paper Intelligence & Integrity System
 
-A production-grade **Retrieval-Augmented Generation (RAG)** system for research papers — built to demonstrate every layer of an AI/ML engineering pipeline.
-
----
-
-## Architecture
-
-```
-Streamlit UI  ──HTTP──►  FastAPI Backend
-                              │
-              ┌───────────────┴──────────────────┐
-              │                                  │
-      Ingestion Pipeline               Query Pipeline
-              │                                  │
-         PDF Parser                     Query Embedding
-              │                                  │
-       Text Chunker                    Hybrid Retrieval
-      (structure-aware)              (Vector + BM25 + RRF)
-              │                                  │
-         BGE Embedder                Cross-Encoder Reranker
-              │                                  │
-         ChromaDB  ◄──────────────────────────── │
-                                       Context Builder
-                                                 │
-                                           Gemini LLM
-                                                 │
-                                    Answer + Citations + Metrics
-```
+A production-grade **Retrieval-Augmented Generation (RAG)** and **Research Integrity Screening** platform for academic literature — designed as an end-to-end AI/ML engineering portfolio system.
 
 ---
 
-## Features
+## 🏗️ Architecture
 
-| Feature | Status |
-|---|---|
-| PDF parsing (PyMuPDF) | ✅ |
-| Structure-aware chunking (configurable size) | ✅ |
-| BGE embeddings (`BAAI/bge-small-en-v1.5`) | ✅ |
-| ChromaDB vector store | ✅ |
-| BM25 keyword retrieval | ✅ |
-| Hybrid retrieval (RRF fusion) | ✅ |
-| Cross-encoder reranker | ✅ |
-| Multi-document collections | ✅ |
-| Grounded answers with citations | ✅ |
-| Hallucination protection (confidence threshold) | ✅ |
-| Evaluation framework (Recall@K, MRR) | ✅ |
-| FastAPI REST backend | ✅ |
-| Streamlit frontend | ✅ |
-| Docker + docker-compose | ✅ |
+```text
+                      ┌──────────────────────────────────────────────┐
+                      │             Streamlit Frontend UI            │
+                      │                                              │
+                      │  🏠 Query  │  📂 Collections  │  📊 Evaluation│
+                      │         🔍 Research Integrity Analysis       │
+                      └──────────────────────┬───────────────────────┘
+                                             │ HTTP REST
+                                             ▼
+                      ┌──────────────────────────────────────────────┐
+                      │              FastAPI Backend                 │
+                      │                                              │
+                      │  /query  /collections  /documents  /analysis │
+                      └──────────────┬───────────────────────────────┘
+                                     │
+           ┌─────────────────────────┴─────────────────────────┐
+           ▼                                                   ▼
+┌───────────────────────┐                           ┌─────────────────────┐
+│  Ingestion Pipeline   │                           │   Query Pipeline    │
+├───────────────────────┤                           ├─────────────────────┤
+│ • PyMuPDF Page Parser │                           │ • Query Embedding   │
+│ • Structure Chunking  │                           │ • Hybrid Retrieval  │
+│   (300w, 50w overlap) │                           │   - BGE Vector      │
+│ • Section Detection   │                           │   - BM25 Keyword    │
+│ • BGE Embedding       │                           │ • Reciprocal Rank   │
+│ • ChromaDB Upsert     │                           │   Fusion (RRF)      │
+│ • BM25 Index Rebuild  │                           │ • Cross-Encoder     │
+└──────────┬────────────┘                           │   Reranker          │
+           │                                        │ • Grounded Context  │
+           ▼                                        │ • Gemini LLM        │
+    ┌─────────────┐                                 │ • Verified Citation │
+    │  ChromaDB   │◄────────────────────────────────┤   & Confidence      │
+    └─────────────┘                                 └─────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│               🔬 Research Integrity Analysis Pipeline                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│ • P-Value Clustering: Detects p-hacking around α = 0.05                 │
+│ • Significance Rate: Detects outcome publication bias                   │
+│ • Multiple Comparisons: Flags unadjusted multi-hypothesis testing       │
+│ • Benford's Law Analysis: χ² goodness-of-fit test for fabricated data   │
+│ • HARKing Detector: Identifies post-hoc hypotheses presented a priori   │
+│ • Selective Outcome Reporting: Compares Methods vs Results variables    │
+│ • Data Transparency: Scans for missing data handling & open datasets   │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Project Structure
+## ✨ Key Capabilities
 
-```
+| Feature | Description | Status |
+|---|---|:---:|
+| **Structure-Aware Chunking** | Dynamic sliding-window chunking (default 300 words, 50 overlap) with section detection | ✅ |
+| **Hybrid Search (Vector + BM25)** | Combines semantic BGE embeddings with BM25Okapi using Reciprocal Rank Fusion ($k=60$) | ✅ |
+| **Cross-Encoder Reranking** | Re-scores top candidates using `cross-encoder/ms-marco-MiniLM-L-6-v2` | ✅ |
+| **Multi-Document Collections** | Manage discrete research paper collections with persistent ChromaDB storage | ✅ |
+| **Grounded Citations** | Citations linked to real document metadata (filename, page, section, text snippet) | ✅ |
+| **Hallucination Shield** | Strict prompt grounding + confidence scoring + `INSUFFICIENT_EVIDENCE` fallback | ✅ |
+| **BM25 Persistence** | Rebuilds in-memory BM25 index across all ChromaDB collections automatically on startup | ✅ |
+| **Research Integrity Analysis** | Automated screening for p-hacking, HARKing, selective reporting & Benford's Law | ✅ |
+| **RAG Evaluation Suite** | Computes quantitative Recall@5, MRR, latency metrics on test sets | ✅ |
+| **Containerization** | Production-ready `Dockerfile` and `docker-compose.yml` | ✅ |
+
+---
+
+## 📁 Project Structure
+
+```text
 retrieval-rag/
-│
 ├── app/
-│   ├── main.py                  # FastAPI app entry point
+│   ├── main.py                     # FastAPI application & lifespan management
 │   │
-│   ├── api/                     # Route handlers
-│   │   ├── health.py            # GET /health
-│   │   ├── collections.py       # CRUD /collections
-│   │   ├── documents.py         # POST /documents/upload
-│   │   ├── query.py             # POST /query
-│   │   └── evaluation.py        # POST /evaluation/run
+│   ├── api/                        # REST API endpoints
+│   │   ├── health.py               # GET /health & /
+│   │   ├── collections.py          # CRUD /collections
+│   │   ├── documents.py            # POST /documents/upload, GET /documents/{col}
+│   │   ├── query.py                # POST /query
+│   │   ├── evaluation.py           # POST /evaluation/run
+│   │   └── analysis.py             # POST /analysis/integrity
 │   │
-│   ├── ingestion/               # Document ingestion pipeline
-│   │   ├── parser.py            # PyMuPDF page extraction
-│   │   ├── cleaner.py           # Text normalization
-│   │   └── chunker.py           # Structure-aware sliding window
+│   ├── ingestion/                  # Document parsing and chunking
+│   │   ├── parser.py               # PyMuPDF text & page extractor
+│   │   ├── cleaner.py              # Text normalizer & cleaner
+│   │   └── chunker.py              # Structure-aware chunking with section detector
 │   │
-│   ├── retrieval/               # Retrieval stack
-│   │   ├── embeddings.py        # BGE embedder
-│   │   ├── vector_search.py     # ChromaDB CRUD + semantic search
-│   │   ├── bm25.py              # BM25 keyword index
-│   │   ├── hybrid.py            # RRF fusion
-│   │   └── reranker.py          # Cross-encoder reranker
+│   ├── retrieval/                  # Hybrid retrieval stack
+│   │   ├── embeddings.py           # BAAI/bge-small-en-v1.5 embedding wrapper
+│   │   ├── vector_search.py        # ChromaDB client & semantic search
+│   │   ├── bm25.py                 # BM25Okapi index & tokenization
+│   │   ├── hybrid.py               # Reciprocal Rank Fusion (RRF)
+│   │   └── reranker.py             # Cross-encoder reranker
 │   │
-│   ├── generation/              # Answer generation
-│   │   ├── prompts.py           # Prompt templates + context builder
-│   │   └── llm.py               # Gemini client (replaceable)
+│   ├── generation/                 # LLM generation & prompt formatting
+│   │   ├── prompts.py              # Strict citation prompts & context blocks
+│   │   └── llm.py                  # Gemini API wrapper with latency tracking
 │   │
-│   ├── core/                    # Orchestration
-│   │   ├── pipeline.py          # Full ingest + query pipelines
-│   │   └── collections.py       # Collection metadata store
+│   ├── analysis/                   # Paper integrity & data-manipulation detection
+│   │   ├── extractor.py            # Regex extractors for p-values, N, & digits
+│   │   ├── flags.py                # Statistical checks: p-hacking, Benford's law
+│   │   ├── llm_checks.py           # Gemini checks: HARKing & selective reporting
+│   │   └── pipeline.py             # Full document integrity orchestrator
 │   │
-│   ├── evaluation/              # RAG evaluation
-│   │   ├── dataset.py           # Load labeled Q&A datasets
-│   │   ├── retrieval.py         # Recall@K, MRR
-│   │   └── generation.py        # Answer relevance, faithfulness
+│   ├── core/                       # Core orchestration
+│   │   ├── collections.py          # JSON metadata storage for collections
+│   │   └── pipeline.py             # Ingestion, query, and BM25 warm-up orchestration
+│   │
+│   ├── evaluation/                 # Retrieval benchmarking
+│   │   ├── dataset.py              # Labeled Q&A dataset loader
+│   │   ├── retrieval.py            # Recall@K and MRR computation
+│   │   └── generation.py           # Heuristic relevance & faithfulness
 │   │
 │   └── models/
-│       └── schemas.py           # Pydantic request/response models
+│       └── schemas.py              # Pydantic request/response models
 │
 ├── frontend/
-│   └── streamlit_app.py         # 3-page Streamlit UI
+│   └── streamlit_app.py            # 4-page Streamlit application
 │
 ├── evaluation/
-│   └── questions.json           # Labeled evaluation dataset
+│   └── questions.json              # Benchmark evaluation dataset
 │
-├── uploads/                     # PDF storage
-├── data/                        # ChromaDB + collection metadata
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-└── .env
+├── uploads/                        # Uploaded PDF document storage
+├── data/                           # ChromaDB vector index & metadata
+├── main.py                         # Root entrypoint
+├── Dockerfile                      # Container definition
+├── docker-compose.yml              # Multi-container orchestration
+├── requirements.txt                # Python package dependencies
+└── .env                            # Environment variables (API keys)
 ```
 
 ---
 
-## Quick Start
+## 🚀 Quickstart Guide
 
-### 1. Clone & activate environment
+### 1. Prerequisites & Environment Setup
 
-```bash
-# Using the existing venv
-.venv-1\Scripts\activate        # Windows
-source .venv-1/bin/activate     # Linux/Mac
-```
-
-### 2. Set your Gemini API key
+Clone the repository and create a Python 3.10+ virtual environment:
 
 ```bash
-# .env
-GEMINI_API_KEY=your_key_here
+git clone https://github.com/GodKillerSajal/research-paper-intelligence-rag.git
+cd research-paper-intelligence-rag
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate       # Linux/macOS
+.venv\Scripts\activate          # Windows
 ```
 
-> You need a free Gemini API key from [https://aistudio.google.com](https://aistudio.google.com)
+### 2. Configure Environment Variables
 
-### 3. Install dependencies
+Create a `.env` file in the root directory:
+
+```bash
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+> Get a free API key from [Google AI Studio](https://aistudio.google.com).
+
+### 3. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Start the backend
+### 4. Run Locally
 
+**Start the FastAPI Backend (Port 8000):**
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8000
 ```
+Interactive API docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-
-### 5. Start the frontend
-
+**Start the Streamlit UI (Port 8501):**
 ```bash
-streamlit run frontend/streamlit_app.py
+streamlit run frontend/streamlit_app.py --server.port 8501
 ```
-
-UI: [http://localhost:8501](http://localhost:8501)
-
-### 6. Docker (optional)
-
-```bash
-docker compose up
-```
+Open in browser: [http://localhost:8501](http://localhost:8501)
 
 ---
 
-## API Reference
+## 🐳 Docker Deployment
 
-| Method | Endpoint | Purpose |
+To spin up both the FastAPI backend and Streamlit frontend in isolated containers:
+
+```bash
+docker compose up --build
+```
+
+- FastAPI: `http://localhost:8000`
+- Streamlit UI: `http://localhost:8501`
+
+---
+
+## ☁️ Cloud Deployment Options
+
+### Option A: Streamlit Community Cloud (Frontend) + Render / Railway (Backend)
+1. **Deploy Backend to Render or Railway**:
+   - Create a Web Service pointing to your GitHub repo.
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - Add Environment Variable: `GEMINI_API_KEY`
+2. **Deploy Frontend to Streamlit Cloud**:
+   - Go to [share.streamlit.io](https://share.streamlit.io).
+   - Select your repo and point to `frontend/streamlit_app.py`.
+   - Update `API_URL` in `frontend/streamlit_app.py` (or set via `st.secrets`) to point to your deployed backend URL.
+
+### Option B: Hugging Face Spaces (Docker)
+1. Create a new Space on [Hugging Face](https://huggingface.co/spaces) with SDK: **Docker**.
+2. Push this repo to the Space.
+3. Configure `GEMINI_API_KEY` under Space Settings -> Variables and Secrets.
+
+---
+
+## 🔌 API Endpoints Summary
+
+| Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/health` | Health check |
-| `GET` | `/collections` | List all collections |
-| `POST` | `/collections` | Create collection |
-| `DELETE` | `/collections/{name}` | Delete collection |
-| `POST` | `/documents/upload` | Upload + ingest a PDF |
-| `GET` | `/documents/{collection}` | List documents in collection |
-| `POST` | `/query` | Ask a question |
-| `POST` | `/evaluation/run` | Run retrieval evaluation |
-
-### Example: Upload
-
-```bash
-curl -X POST http://localhost:8000/documents/upload \
-  -F "file=@paper.pdf" \
-  -F "collection=transformers" \
-  -F "chunk_size=512"
-```
-
-### Example: Query
-
-```bash
-curl -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "What attention mechanism was proposed?",
-    "collection": "transformers",
-    "top_k": 5,
-    "retrieval_mode": "hybrid"
-  }'
-```
-
-Response includes `answer`, `sources` (with page + section citations), `confidence`, and latency metrics.
+| `GET` | `/health` | Service health status & uptime |
+| `GET` | `/collections` | List all collections & document counts |
+| `POST` | `/collections` | Create a new paper collection |
+| `DELETE` | `/collections/{name}` | Delete collection & ChromaDB index |
+| `POST` | `/documents/upload` | Upload & ingest a PDF document |
+| `GET` | `/documents/{col}` | List ingested papers in a collection |
+| `POST` | `/query` | Execute hybrid search & generate cited answer |
+| `POST` | `/analysis/integrity` | Run statistical & AI research integrity audit |
+| `GET` | `/analysis/documents/{col}`| List documents eligible for integrity audit |
+| `POST` | `/evaluation/run` | Benchmark retrieval metrics (Recall@5, MRR) |
 
 ---
 
-## Retrieval Modes
+## 🎓 Technical Interview Highlights
 
-| Mode | Description |
-|---|---|
-| `vector` | Semantic similarity only (BGE embeddings + ChromaDB) |
-| `bm25` | Keyword-based only (BM25Okapi) |
-| `hybrid` | **Reciprocal Rank Fusion** of vector + BM25, then cross-encoder reranker |
+When discussing this architecture in ML engineering and applied AI interviews:
 
-Hybrid + reranker consistently outperforms either alone for research paper Q&A.
+1. **Why Hybrid Retrieval?**
+   - Pure semantic search often struggles with specific entity names, formulas, sample sizes, and acronyms.
+   - BM25 provides exact token matching, while BGE provides semantic understanding.
+   - Reciprocal Rank Fusion (RRF) standardizes rankings without needing calibrated score distributions.
 
----
+2. **Why Cross-Encoder Reranking?**
+   - Bi-encoders embed query and passages independently (efficient candidate generation).
+   - Cross-encoders evaluate full query-document cross-attention (higher fidelity, applied only on top 20 candidates for minimal latency impact).
 
-## Evaluation
+3. **Hallucination Prevention**:
+   - Explicit prompt bounding prevents external training memory leaks.
+   - Per-chunk verified source attribution metadata ensures citations cannot be made up by the LLM.
+   - Confidence thresholding enables graceful `INSUFFICIENT_EVIDENCE` degradation.
 
-Create a labeled dataset at `evaluation/questions.json`:
-
-```json
-[
-  {
-    "question": "What was the sample size?",
-    "expected_answer": "36 patients in group A.",
-    "relevant_document": "study.pdf",
-    "relevant_page": 4
-  }
-]
-```
-
-Then run via API or Streamlit **Evaluation** page. Metrics returned:
-- **Recall@5** — was the relevant chunk in the top 5?
-- **MRR** — Mean Reciprocal Rank
-- **Avg Retrieval Latency** (ms)
-- **Avg Total Latency** (ms)
-
----
-
-## Interview Discussion Points
-
-This project demonstrates:
-
-- **Ingestion**: page-level parsing, structure-aware chunking, configurable chunk size/overlap
-- **Retrieval**: why BM25 beats vectors for exact-match queries (learning rate, sample size), why hybrid wins overall
-- **Reranking**: cross-encoders are slower than bi-encoders but more accurate — used as a final filter on a small candidate set
-- **Hallucination mitigation**: confidence thresholding, grounding policy in prompt, `INSUFFICIENT_EVIDENCE` fallback
-- **Citations**: metadata-driven, not LLM-generated
-- **Evaluation**: quantitative Recall@K and MRR rather than vibes-based testing
-- **Scalability**: can add Pinecone/Weaviate instead of ChromaDB, swap Gemini for any LLM via `llm.py`
+4. **Integrity Screening Pipeline**:
+   - Combines statistical anomaly detection (p-value distributions, Benford's Law on empirical measurements) with LLM-based structural comprehension (detecting disparities between Methods and Results).

@@ -1,16 +1,4 @@
-print("MAIN FILE STARTED")
-from app.rag.pipeline import (
-    ingest_document,
-    ask_question
-)
-def main():
-    def main():
-        print("INSIDE MAIN")
+import uvicorn
 
-    answer = ask_question(
-        "What was the sample size?"
-    )
-
-    print(answer)
 if __name__ == "__main__":
-    main()
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
