@@ -1,0 +1,28 @@
+# Core
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+
+# PDF parsing
+pymupdf>=1.24.0
+
+# Embeddings & reranking
+sentence-transformers>=3.0.0
+
+# Vector DB
+chromadb>=0.5.0
+
+# BM25
+rank-bm25>=0.2.2
+
+# LLM
+google-genai>=1.0.0
+
+# Frontend
+streamlit>=1.35.0
+requests>=2.31.0
+
+# Utilities
+numpy>=1.26.0

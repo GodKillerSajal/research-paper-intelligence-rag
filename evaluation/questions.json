@@ -1,0 +1,14 @@
+[
+  {
+    "question": "What is the main contribution of this paper?",
+    "expected_answer": "The paper proposes a novel architecture for...",
+    "relevant_document": "paper.pdf",
+    "relevant_page": 1
+  },
+  {
+    "question": "What dataset was used for evaluation?",
+    "expected_answer": "The model was evaluated on...",
+    "relevant_document": "paper.pdf",
+    "relevant_page": 5
+  }
+]
