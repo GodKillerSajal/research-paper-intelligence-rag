@@ -1,7 +1,19 @@
-import streamlit as st
+import os
+import sys
+import time
+import subprocess
 import requests
+import streamlit as st
 
-API_URL = "http://127.0.0.1:8000"
+# Sync Streamlit secrets to environment variables (e.g. GEMINI_API_KEY, API_URL)
+try:
+    for k, v in st.secrets.items():
+        if isinstance(v, str) and k not in os.environ:
+            os.environ[k] = v
+except Exception:
+    pass
+
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").rstrip("/")
 
 st.set_page_config(
     page_title="Research Paper Intelligence",
@@ -9,8 +21,52 @@ st.set_page_config(
     layout="wide",
 )
 
+
+@st.cache_resource
+def ensure_backend_alive():
+    """
+    On Streamlit Cloud or standalone deployments, automatically spawns
+    the FastAPI backend in the background so both frontend and backend
+    run seamlessly in a single deployment.
+    """
+    try:
+        r = requests.get(f"{API_URL}/health", timeout=2)
+        if r.status_code == 200:
+            return True
+    except Exception:
+        pass
+
+    if "127.0.0.1" in API_URL or "localhost" in API_URL:
+        # Launch uvicorn background process
+        subprocess.Popen(
+            [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        # Poll health endpoint until models load and server is up
+        for _ in range(40):
+            time.sleep(1)
+            try:
+                r = requests.get(f"{API_URL}/health", timeout=2)
+                if r.status_code == 200:
+                    return True
+            except Exception:
+                pass
+    return False
+
+
+# Check / start backend
+backend_ready = ensure_backend_alive()
+
 # ─── Sidebar ──────────────────────────────────────────────────────────────────
 st.sidebar.title("📚 Research Intelligence")
+
+if not os.getenv("GEMINI_API_KEY"):
+    st.sidebar.warning(
+        "⚠️ `GEMINI_API_KEY` not set!\n\n"
+        "Set it in `.env` (locally) or in **Streamlit Cloud App Settings → Secrets**."
+    )
+
 page = st.sidebar.radio(
     "Navigation",
     ["🏠 Query", "📂 Collections", "🔍 Integrity Analysis", "📊 Evaluation"],
@@ -19,11 +75,11 @@ page = st.sidebar.radio(
 
 def api_get(path):
     try:
-        r = requests.get(f"{API_URL}{path}", timeout=10)
+        r = requests.get(f"{API_URL}{path}", timeout=15)
         r.raise_for_status()
         return r.json()
     except requests.exceptions.ConnectionError:
-        st.error("❌ Cannot connect to backend. Is FastAPI running on port 8000?")
+        st.error("⏳ AI backend is warming up (loading models). Please refresh in a few seconds.")
         return None
     except Exception as e:
         st.error(f"API error: {e}")
@@ -42,7 +98,7 @@ def api_post(path, json_data=None, files=None, data=None):
         r.raise_for_status()
         return r.json()
     except requests.exceptions.ConnectionError:
-        st.error("❌ Cannot connect to backend. Is FastAPI running on port 8000?")
+        st.error("⏳ AI backend is warming up (loading models). Please wait a moment and retry.")
         return None
     except Exception as e:
         st.error(f"API error: {e}")
@@ -83,7 +139,7 @@ if page == "🏠 Query":
     )
 
     if st.button("🚀 Ask", type="primary") and question.strip():
-        with st.spinner("Retrieving and generating answer..."):
+        with st.spinner("Retrieving relevant passages and synthesizing cited answer..."):
             result = api_post("/query", json_data={
                 "question": question,
                 "collection": selected_collection,
@@ -105,7 +161,7 @@ if page == "🏠 Query":
 
             sources = result.get("sources", [])
             if sources:
-                st.markdown("### 📌 Sources")
+                st.markdown("### 📌 Sources & Verified Citations")
                 for src in sources:
                     with st.expander(
                         f"[{src['index']}] {src['document']} — Page {src['page']} · {src['section']}"
@@ -114,9 +170,9 @@ if page == "🏠 Query":
 
             st.markdown("---")
             m1, m2, m3 = st.columns(3)
-            m1.metric("Retrieval", f"{result['retrieval_latency_ms']:.0f} ms")
-            m2.metric("Generation", f"{result['generation_latency_ms']:.0f} ms")
-            m3.metric("Total", f"{result['total_latency_ms']:.0f} ms")
+            m1.metric("Retrieval Latency", f"{result['retrieval_latency_ms']:.0f} ms")
+            m2.metric("Generation Latency", f"{result['generation_latency_ms']:.0f} ms")
+            m3.metric("Total Latency", f"{result['total_latency_ms']:.0f} ms")
 
 
 # ─── PAGE: Collections ────────────────────────────────────────────────────────
