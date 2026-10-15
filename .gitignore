@@ -9,6 +9,10 @@ env/
 # Data & uploads
 uploads/
 data/
+outputs/
+mlruns/
+chroma_db/
+vector_store/
 *.pdf
 
 # Environment

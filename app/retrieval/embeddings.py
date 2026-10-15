@@ -22,8 +22,10 @@ def embed_texts(texts: List[str]) -> np.ndarray:
 def embed_query(query: str) -> np.ndarray:
     """Embed a single query string. Returns (D,) numpy array."""
     model = _get_model()
-    return model.encode(
-        query,
-        normalize_embeddings=True,
-        prompt_name="query",  # BGE instruction prefix for queries
-    )
+    try:
+        return model.encode(query, normalize_embeddings=True, prompt_name="query")
+    except (KeyError, ValueError):
+        # Some sentence-transformers releases of BGE do not register named
+        # prompts. Keep the documented retrieval instruction explicit then.
+        instructed_query = "Represent this sentence for searching relevant passages: " + query
+        return model.encode(instructed_query, normalize_embeddings=True)

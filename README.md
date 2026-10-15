@@ -239,6 +239,31 @@ docker compose up --build
 
 ## 🎓 Technical Interview Highlights
 
+### Reproducible retrieval benchmark
+
+`python evaluation/benchmark_scifact.py` compares BM25, BGE dense retrieval,
+reciprocal-rank fusion, and cross-encoder reranking on the held-out BEIR SciFact
+test qrels. It reports Recall@10, MRR@10, nDCG@10, runtime, and per-query ranks,
+and logs the run to local MLflow when installed. The benchmark is retrieval-only;
+it does not claim generated-answer correctness or faithfulness. The public
+SciFact data is licensed CC-BY-SA-4.0; see `evaluation/DATA_ATTRIBUTION.md`.
+
+Use `--max-queries 10` for a quick pipeline smoke check. The full benchmark uses
+all test qrels and downloads the corpus once into the ignored local `data/` folder.
+
+## Measured retrieval results
+
+Full BEIR SciFact test evaluation: 5,183 corpus abstracts, all 300 test queries, BGE-small embeddings on the RTX 3050, top 100 candidates, and top 20 reranked candidates. Metrics are averaged over the test queries and are written with per-query rankings to `outputs/scifact/`.
+
+| Method | Recall@10 | MRR@10 | nDCG@10 |
+| --- | ---: | ---: | ---: |
+| BM25 | 0.7740 | 0.6186 | 0.6519 |
+| BGE dense | **0.8452** | **0.6845** | **0.7200** |
+| BM25 + dense RRF | 0.8207 | 0.6775 | 0.7081 |
+| RRF + cross-encoder reranking | 0.8319 | 0.6662 | 0.6979 |
+
+On this benchmark, dense retrieval was strongest across all three ranking metrics. RRF plus reranking recovered some recall over RRF alone, but neither hybrid method beat dense retrieval; the reranker did not improve MRR or nDCG. Keep dense retrieval as the current SciFact baseline and evaluate fusion choices on the target corpus before selecting a production default. This is retrieval-only evaluation: it does not measure generated-answer correctness or faithfulness. SciFact qrels are incomplete, and unjudged abstracts are not necessarily irrelevant.
+
 When discussing this architecture in ML engineering and applied AI interviews:
 
 1. **Why Hybrid Retrieval?**

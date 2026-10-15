@@ -2,7 +2,7 @@
 Hybrid retrieval: fuse vector search + BM25 using Reciprocal Rank Fusion (RRF).
 """
 from typing import List, Dict, Any
-import numpy as np
+import hashlib
 
 RRF_K = 60  # RRF constant
 
@@ -42,5 +42,8 @@ def reciprocal_rank_fusion(
 
 
 def _result_key(result: Dict[str, Any]) -> str:
-    """Unique key for deduplication: use text hash."""
-    return str(hash(result["text"][:200]))
+    """Stable key for deduplication across retrievers and application restarts."""
+    metadata = result.get("metadata", {})
+    if metadata.get("doc_id") is not None:
+        return str(metadata["doc_id"])
+    return hashlib.sha256(result["text"].encode("utf-8")).hexdigest()
